@@ -8,22 +8,23 @@ def main():
 
     # Tạo đối tượng Crawler cho cả dữ liệu và ảnh
     crawler = Crawler(driver_path, excel_path)
-    sheet_name = 2  # Số thứ tự sheet bắt đầu từ 0
+    sheet_name = 0  # Số thứ tự sheet bắt đầu từ 0
 
 # Đọc chỉ cột U từ sheet thứ 3
-    data = pd.read_excel(excel_path, sheet_name=sheet_name, usecols="U")
+    data = pd.read_excel(excel_path, sheet_name=sheet_name)
 
 # Hiển thị dữ liệu
-    print(data)
-    # for index, row in data.iterrows():
-    #     # Gọi phương thức để xử lý dữ liệu
-    #     search_value = row[1]  # Số đơn từ file Excel
-    #     crawler.process_search(search_value)
+    for index, row in data.iterrows():
+        # Gọi phương thức để xử lý dữ liệu
+        
+        search_value = row[1]  # Số đơn từ file Excel
+            # print(search_value)
+        crawler.process_search(search_value)
 
-    #     # Gọi phương thức để tải ảnh (giả sử phương thức là `download_images`)
+        # Gọi phương thức để tải ảnh (giả sử phương thức là `download_images`)
 
-    # # Đóng trình điều khiển
-    # crawler.stop_driver()
+    # Đóng trình điều khiển
+    crawler.stop_driver()
 
 
 if __name__ == "__main__":

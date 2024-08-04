@@ -13,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 
+
 class Crawler:
     def __init__(self, driver_path, excel_path):
         self.driver_path = driver_path
@@ -25,12 +26,14 @@ class Crawler:
         self.chrome_options.add_argument("--window-size=1920,1080")
         # Cập nhật Service và WebDriver
         self.service = Service(executable_path=self.driver_path)
-        self.driver = webdriver.Chrome(service=self.service, options=self.chrome_options)
+        self.driver = webdriver.Chrome(
+            service=self.service, options=self.chrome_options
+        )
         self.excel_folder = "ExcelFiles"
         os.makedirs(self.excel_folder, exist_ok=True)
 
         # Đặt tên file Excel
-        self.excel_file_path = os.path.join(self.excel_folder, "kdcn.xlsx")
+        self.excel_file_path = os.path.join(self.excel_folder, "nh.xlsx")
 
         # Khởi tạo danh sách dữ liệu
         self.data = []
@@ -61,11 +64,11 @@ class Crawler:
 
         image_paths = []  # Danh sách để lưu đường dẫn ảnh
 
-        retry_attempts = 3
+        retry_attempts = 2
         while retry_attempts > 0:
             try:
                 self.driver.get(
-                    "http://wipopublish.ipvietnam.gov.vn/wopublish-search/public/designs?18&query=*:*"
+                    "http://wipopublish.ipvietnam.gov.vn/wopublish-search/public/trademarks?1&query=*:*"
                 )
                 WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located(
@@ -85,21 +88,15 @@ class Crawler:
                 input_field.send_keys(Keys.RETURN)
 
                 try:
-                    WebDriverWait(self.driver, 30).until(
-                        EC.presence_of_element_located(
-                            (
-                                By.XPATH,
-                                "//a[.//img[contains(@class, 'rs-DRAWING')]]",
-                            )
+                    a_tag = WebDriverWait(self.driver, 20).until(
+                        EC.element_to_be_clickable(
+                            (By.CSS_SELECTOR, "a.fa-file-text.fa-lg")
                         )
                     )
-                    link_elements = self.driver.find_elements(
-                        By.XPATH, "//a[.//img[contains(@class, 'rs-DRAWING')]]"
-                    )
-                    print(f"Đã tìm thấy {len(link_elements)} liên kết")
+                    print(f"Đã tìm thấy thẻ liên kết")
 
-                    if link_elements:
-                        first_link = link_elements[0]
+                    if a_tag:
+                        first_link = a_tag
                         first_link.click()
                         print("Đã nhấp vào liên kết đầu tiên")
 
@@ -115,10 +112,10 @@ class Crawler:
                             )
                             html = detail_container.get_attribute("outerHTML")
                             soup = BeautifulSoup(html, "html.parser")
-
                             rows = soup.find_all("div", class_="row")
                             # Tạo từ điển để lưu trữ dữ liệu
                             row_data = {}
+
                             for row in rows:
                                 # Tìm tất cả các div có class "product-form-label" và "product-form-details"
                                 label_divs = row.find_all(
@@ -133,30 +130,37 @@ class Crawler:
                                 ):
                                     if label_div and details_div:
                                         # Loại bỏ ký tự trong ngoặc ở đầu
-                                        label_text = re.sub(
-                                            r"^\([^)]*\)\s*",
-                                            "",
-                                            label_div.get_text(strip=True),
-                                        )
+                                        if(label_div.get_text(strip=True) == "(541) Nhãn hiệu"):
+                                            label_text = "Nhãn hiệu gốc"
+                                        else:
+                                            label_text = re.sub(
+                                                r"^\([^)]*\)\s*",
+                                                "",
+                                                label_div.get_text(strip=True),
+                                            )
                                         details_text = details_div.get_text(strip=True)
 
                                         # Xử lý các trường hợp đặc biệt
                                         if label_text == "Số bằng và ngày cấp":
                                             spans = details_div.find_all("span")
-                                            if len(spans) == 2:
+                                            if (
+                                                len(spans) >= 2
+                                            ):  # Kiểm tra danh sách trước khi truy cập
                                                 row_data["Số bằng"] = spans[0].get_text(
                                                     strip=True
                                                 )
                                                 row_data["Ngày cấp"] = spans[
                                                     1
                                                 ].get_text(strip=True)
+                                            else:
+                                                print(
+                                                    f"Không đủ dữ liệu trong spans: {spans}"
+                                                )
                                         elif label_text == "Số đơn và Ngày nộp đơn":
                                             spans = details_div.find_all("span")
                                             if len(spans) == 2:
-                                                row_data["Số đơn"] = (
-                                                    spans[0]
-                                                    .get_text(strip=True)
-                                                    .lstrip("VN")
+                                                row_data["Số đơn"] = spans[0].get_text(
+                                                    strip=True
                                                 )
                                                 row_data["Ngày nộp đơn"] = spans[
                                                     1
@@ -168,6 +172,7 @@ class Crawler:
                                             content = details_text.find_all(
                                                 "div", class_="col-md-4"
                                             )
+
                                             row_data["Số công bố"] = content[
                                                 0
                                             ].get_text(strip=True)
@@ -175,29 +180,71 @@ class Crawler:
                                                 1
                                             ].get_text(strip=True)
                                         elif label_text == "Chủ đơn/Chủ bằng":
-                                            contents = details_div.find("div", class_="row")
-                                            for content in contents:
-                                                raw_text = ''.join([text for text in content.stripped_strings if not text.startswith('(')])
-                                                parts = raw_text.split(':', 1)
-                                                if len(parts) == 2:
-                                                    row_data['Chủ đơn'] = parts[0].strip()
-                                                    row_data['Địa chỉ chủ đơn'] = parts[1].strip()
-                                        elif label_text == "Tác giả kiểu dáng":
-                                            contents = details_div.find("div", class_="row")
-                                            for content in contents:
-                                                raw_text = ''.join([text for text in content.stripped_strings if not text.startswith('(')])
-                                                parts = raw_text.split(':', 1)
-                                                if len(parts) == 2:
-                                                    row_data['Tác giả'] = parts[0].strip()
-                                                    row_data['Địa chỉ tác giả'] = parts[1].strip()
+                                            contents = details_div.find_all(
+                                                "div", id="apnaDiv"
+                                            )
+                                            for idx, content in enumerate(
+                                                contents, start=1
+                                            ):
+                                                first_row = content.find(
+                                                    "div", class_="row"
+                                                )
+                                                if first_row:
+                                                    raw_text = "".join(
+                                                        [
+                                                            text
+                                                            for text in first_row.stripped_strings
+                                                            if not text.startswith("(")
+                                                        ]
+                                                    )
+                                                    parts = raw_text.split(":", 1)
+                                                    if len(parts) == 2:
+                                                        row_data[f"Chủ đơn_{idx}"] = (
+                                                            parts[0].strip()
+                                                        )
+                                                        row_data[
+                                                            f"Địa chỉ Chủ đơn_{idx}"
+                                                        ] = parts[1].strip()
+                                                    elif len(parts) == 1:
+                                                        row_data[f"Chủ đơn_{idx}"] = (
+                                                            parts[0].strip()
+                                                        )
+                                                        row_data[
+                                                            f"Địa chỉ Chủ đơn_{idx}"
+                                                        ] = ""
                                         elif label_text == "Đại diện SHCN":
-                                            contents = details_div.find("div", class_="row")
+                                            contents = details_div.find(
+                                                "div", class_="row"
+                                            )
                                             for content in contents:
-                                                raw_text = ''.join([text for text in content.stripped_strings if not text.startswith('(')])
-                                                parts = raw_text.split(':', 1)
+                                                raw_text = "".join(
+                                                    [
+                                                        text
+                                                        for text in content.stripped_strings
+                                                        if not text.startswith("(")
+                                                    ]
+                                                )
+                                                parts = raw_text.split(":", 1)
                                                 if len(parts) == 2:
-                                                    row_data['Đại diện SHCN'] = parts[0].strip()
-                                                    row_data['Địa chỉ đại diện'] = parts[1].strip()
+                                                    row_data["Đại diện SHCN"] = parts[
+                                                        0
+                                                    ].strip()
+                                                    row_data["Địa chỉ đại diện"] = (
+                                                        parts[1].strip()
+                                                    )
+                                        elif label_text == "Nhãn hiệu gốc":
+                                            row_data[label_text] = re.sub(
+                                                r"^\([^)]*\)\s*",
+                                                "",
+                                                details_text,
+                                            )
+                                        elif label_text == "Nhóm sản phẩm/dịch vụ":
+                                            content_text = details_div.find(
+                                                "div", class_="col-md-10"
+                                            )
+                                            row_data[label_text] = content_text.get_text(strip=True)
+                                            
+
                                         else:
                                             row_data[label_text] = details_text
                             # Chỉ thêm vào danh sách nếu có dữ liệu
@@ -205,42 +252,54 @@ class Crawler:
                                 self.data.append(row_data)
 
                             # Crawl ảnh
-                            WebDriverWait(self.driver, 20).until(
-                                EC.presence_of_element_located(
-                                    (By.CSS_SELECTOR, "img.DRAWING-detail")
+                            try:
+                                WebDriverWait(self.driver, 10).until(
+                                    EC.presence_of_element_located(
+                                        (By.CSS_SELECTOR, "img.detail-img")
+                                    )
                                 )
-                            )
-                            print("Tìm thấy ảnh chi tiết!")
+                                print("Tìm thấy ảnh chi tiết!")
 
-                            images = self.driver.find_elements(
-                                By.CSS_SELECTOR, "img.DRAWING-detail"
-                            )
-                            print(f"Đã tìm thấy {len(images)} ảnh")
+                                images = self.driver.find_elements(
+                                    By.CSS_SELECTOR, "img.detail-img"
+                                )
+                                print(f"Đã tìm thấy {len(images)} ảnh")
 
-                            for idx, img in enumerate(images):
-                                img_url = img.get_attribute("src")
-                                if img_url:
-                                    try:
-                                        img_data = requests.get(img_url).content
-                                        img_name = f"{search_value}_{idx+1}.jpg"
-                                        img_path = os.path.join(folder_name, img_name)
-                                        image_paths.append(img_path)  # Thêm đường dẫn ảnh vào danh sách
+                                for idx, img in enumerate(images):
+                                    img_url = img.get_attribute("src")
+                                    if img_url:
+                                        try:
+                                            img_data = requests.get(img_url).content
+                                            img_name = f"{search_value}_{idx+1}.jpg"
+                                            img_path = os.path.join(
+                                                folder_name, img_name
+                                            )
+                                            image_paths.append(
+                                                img_path
+                                            )  # Thêm đường dẫn ảnh vào danh sách
 
-                                        with open(img_path, "wb") as f:
-                                            f.write(img_data)
-                                        print(f"Đã lưu ảnh {img_name} tại {img_path}")
-                                    except Exception as e:
-                                        print(f"Không thể tải ảnh {img_url}: {e}")
-                                else:
-                                    print("URL ảnh không hợp lệ")
-                            break
-
+                                            with open(img_path, "wb") as f:
+                                                f.write(img_data)
+                                            print(
+                                                f"Đã lưu ảnh {img_name} tại {img_path}"
+                                            )
+                                        except Exception as e:
+                                            print(f"Không thể tải ảnh {img_url}: {e}")
+                                    else:
+                                        print("URL ảnh không hợp lệ")
+                                break
+                            except Exception as e:
+                                print(
+                                    "Không tìm thấy ảnh chi tiết trong thời gian chờ."
+                                )
+                                break
                         except Exception as e:
                             print(f"Đã xảy ra lỗi khi crawl dữ liệu: {e}")
                             retry_attempts -= 1
                             self.driver.save_screenshot(
                                 os.path.join(
-                                    error_folder_phase_3, f"{search_value}_data_error.png"
+                                    error_folder_phase_3,
+                                    f"{search_value}_data_error.png",
                                 )
                             )
                             time.sleep(5)
@@ -283,8 +342,6 @@ class Crawler:
                     # Thêm cột "STT" và "images" vào dữ liệu
                     for index, row in enumerate(self.data, start=1):
                         row["STT"] = index
-                        row["images"] = ", ".join([os.path.join("Images", f"{search_value}_{i+1}.jpg") for i in range(len(image_paths))])
-
                     # Đổi vị trí cột "STT" để nó nằm ở đầu
                     df = pd.DataFrame(self.data)
                     columns = ["STT"] + [col for col in df.columns if col != "STT"]
