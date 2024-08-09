@@ -4,11 +4,11 @@ from crawler import Crawler
 
 def main():
     driver_path = "chromedriver-win64/chromedriver.exe"  # Đường dẫn đến ChromeDriver
-    excel_path = "excel.xls"  # Đường dẫn đến file Excel
+    excel_path = "all.xls"  # Đường dẫn đến file Excel
 
     # Tạo đối tượng Crawler cho cả dữ liệu và ảnh
     crawler = Crawler(driver_path, excel_path)
-    sheet_name = 0  # Số thứ tự sheet bắt đầu từ 0
+    sheet_name = 2  # Số thứ tự sheet bắt đầu từ 0
 
 # Đọc chỉ cột U từ sheet thứ 3
     data = pd.read_excel(excel_path, sheet_name=sheet_name)
