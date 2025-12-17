@@ -107,14 +107,37 @@ class TrademarkCrawler:
             checkbox.click()
             logger.info("✓ Đã click vào checkbox")
 
-            # Switch về main content
-            self.driver.switch_to.default_content()
+            # Đợi 2 giây để xem captcha có verified không
+            time.sleep(2)
 
-            # Đợi user giải captcha nếu có challenge
-            logger.info("⏳ Chờ 10 giây để giải captcha (nếu có challenge)...")
-            time.sleep(10)
+            # Kiểm tra xem captcha đã verified chưa (không có challenge)
+            try:
+                # Tìm element với aria-checked="true" nghĩa là đã verified
+                checkbox_checked = self.driver.find_element(
+                    By.CSS_SELECTOR, "div.recaptcha-checkbox-checkmark"
+                )
+                logger.info("✓ Captcha đã verified ngay (không có challenge)!")
 
-            return True
+                # Switch về main content
+                self.driver.switch_to.default_content()
+
+                # Click nút Next luôn
+                logger.info("🔘 Đang tìm và click nút Next...")
+                self.click_next_button()
+
+                return True
+
+            except:
+                # Có challenge, cần user giải
+                logger.info("⏳ Captcha có challenge, chờ 20 giây để user giải và click Next...")
+
+                # Switch về main content
+                self.driver.switch_to.default_content()
+
+                # Chờ lâu hơn để user kịp giải challenge và click Next
+                time.sleep(20)
+
+                return True
 
         except Exception as e:
             logger.error(f"❌ Lỗi xử lý captcha: {e}")
@@ -217,15 +240,11 @@ class TrademarkCrawler:
                 raise Exception("Timeout: Không load được trang")
 
             elif result == "captcha":
-                # Xử lý reCAPTCHA khi đã xuất hiện
+                # Xử lý reCAPTCHA khi đã xuất hiện (handle_recaptcha sẽ tự động click Next)
                 logger.info("Đang xử lý reCAPTCHA...")
                 self.handle_recaptcha()
 
-                # Click vào nút Next sau khi xử lý reCAPTCHA
-                logger.info("Đang kiểm tra nút Next...")
-                self.click_next_button()
-
-                # Sau khi click Next, F5 liên tục cho đến khi thấy trang chi tiết
+                # Sau khi xử lý captcha và click Next, F5 liên tục cho đến khi thấy trang chi tiết
                 logger.info("⏳ Đang F5 để tải trang chi tiết...")
                 max_f5_after_captcha = 20
                 detail_found = False
