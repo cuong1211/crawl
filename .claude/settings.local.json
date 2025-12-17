@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"Expand-Archive -Path ''chromedriver-win64.zip'' -DestinationPath ''.'' -Force\")",
+      "Bash(ls:*)",
+      "Bash(\"C:/Users/cuong/AppData/Local/Programs/Python/Python312/python.exe\":*)",
+      "Bash(\"C:/Users/cuong/AppData/Local/Programs/Python/Python312/python.exe\" check_chrome_profile.py)",
+      "Bash(\"C:/Users/cuong/AppData/Local/Programs/Python/Python312/python.exe\" -c \"import pandas as pd; df = pd.read_excel(''Output_Designs_Direct/designs_data.xlsx''); print(f''Số dòng: {len(df)}''); print(''\\nCác cột:''); print(df.columns.tolist()); print(''\\nDữ liệu mẫu:''); print(df.head())\")",
+      "Bash(\"C:/Users/cuong/AppData/Local/Programs/Python/Python312/python.exe\" -c \"import pandas as pd; df = pd.read_excel(''Output_Designs_Direct/designs_data.xlsx''); print(df.shape); print(list(df.columns))\")"
+    ]
+  }
+}
