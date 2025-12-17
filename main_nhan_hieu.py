@@ -33,17 +33,15 @@ def main():
         # Khởi tạo crawler
         crawler = TrademarkCrawler(driver_path, excel_path)
 
-        # Crawl từng số đơn
+        # Crawl từng số đơn (data sẽ tự động save sau mỗi số đơn)
         for idx, filing_number in enumerate(filing_numbers, start=1):
             logger.info(f"📌 [{idx}/{len(filing_numbers)}] Đang xử lý: {filing_number}")
             crawler.process_trademark(filing_number)
 
-        # Lưu dữ liệu vào Excel
-        crawler.save_data_to_excel()
-
         logger.info("")
         logger.info("=" * 80)
         logger.info("✅ HOÀN THÀNH TẤT CẢ!")
+        logger.info(f"💾 File Excel: {crawler.excel_file_path}")
         logger.info("=" * 80)
 
     except Exception as e:

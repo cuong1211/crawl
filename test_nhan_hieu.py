@@ -28,11 +28,9 @@ def main():
 
         crawler.process_trademark(test_filing_number)
 
-        # Lưu data
-        crawler.save_data_to_excel()
-
         print()
         print("✅ Test hoàn thành!")
+        print(f"💾 File Excel: {crawler.excel_file_path}")
 
     except Exception as e:
         print(f"❌ LỖI: {e}")

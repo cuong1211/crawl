@@ -121,9 +121,51 @@ class TrademarkCrawler:
                 # Switch về main content
                 self.driver.switch_to.default_content()
 
-                # Click nút Next luôn
-                logger.info("🔘 Đang tìm và click nút Next...")
-                self.click_next_button()
+                # Thử tìm và click nút Next (thử nhiều cách)
+                next_clicked = False
+                try:
+                    logger.info("🔘 Đang tìm nút Next...")
+
+                    # Cách 1: Tìm button với text "Next"
+                    try:
+                        next_button = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Next')]")
+                        next_button.click()
+                        logger.info("✓ Đã click nút Next (cách 1)")
+                        next_clicked = True
+                    except:
+                        pass
+
+                    # Cách 2: Tìm button với class btn-primary
+                    if not next_clicked:
+                        try:
+                            next_button = self.driver.find_element(By.CSS_SELECTOR, "button.btn-primary")
+                            next_button.click()
+                            logger.info("✓ Đã click nút Next (cách 2)")
+                            next_clicked = True
+                        except:
+                            pass
+
+                    # Cách 3: Tìm input submit
+                    if not next_clicked:
+                        try:
+                            next_button = self.driver.find_element(By.XPATH, "//input[@type='submit']")
+                            next_button.click()
+                            logger.info("✓ Đã click nút Next (cách 3)")
+                            next_clicked = True
+                        except:
+                            pass
+
+                    if next_clicked:
+                        time.sleep(3)
+                    else:
+                        logger.warning("⚠️ Không tìm thấy nút Next bằng mọi cách!")
+                        logger.warning("⏸️ Dừng 15 giây để bạn click Next thủ công...")
+                        time.sleep(15)
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Lỗi khi tìm nút Next: {e}")
+                    logger.warning("⏸️ Dừng 15 giây để bạn click Next thủ công...")
+                    time.sleep(15)
 
                 return True
 
@@ -438,20 +480,28 @@ class TrademarkCrawler:
     def save_data_to_excel(self):
         """Lưu dữ liệu vào file Excel"""
         if self.data:
-            logger.info(f"📊 Đang lưu dữ liệu vào Excel...")
+            # Add STT cho các records mới
             for index, row in enumerate(self.data, start=1):
                 row["STT"] = index + len(self.existing_data)
+
             df = pd.DataFrame(self.data)
             columns = ["STT"] + [col for col in df.columns if col != "STT"]
             df = df[columns]
+
+            # Tạo output folder nếu chưa có
+            self.excel_file_path.parent.mkdir(parents=True, exist_ok=True)
+
             combined_data = pd.concat([self.existing_data, df], ignore_index=True)
             combined_data.to_excel(self.excel_file_path, index=False)
 
             total_records = len(combined_data)
             new_records = len(self.data)
-            logger.info(f"✅ THÀNH CÔNG! Đã lưu {new_records} bản ghi mới")
-            logger.info(f"📈 Tổng số bản ghi trong file: {total_records}")
-            logger.info(f"💾 File output: {self.excel_file_path}")
+            logger.info(f"✅ Đã lưu {new_records} bản ghi mới vào Excel")
+            logger.info(f"📈 Tổng: {total_records} bản ghi | File: {self.excel_file_path}")
+
+            # Cập nhật existing_data và clear data cho lần save tiếp theo
+            self.existing_data = combined_data
+            self.data = []
         else:
             logger.warning("⚠️ Không có dữ liệu để lưu.")
 
@@ -483,6 +533,10 @@ class TrademarkCrawler:
 
             # Thêm data vào list
             self.data.append(row_data)
+
+            # Lưu vào Excel ngay sau mỗi lần crawl thành công
+            logger.info("💾 Đang lưu vào Excel...")
+            self.save_data_to_excel()
 
             elapsed_time = time.time() - start_time
             logger.info(f"✅ THÀNH CÔNG! Xử lý xong {filing_number} trong {elapsed_time:.2f}s")
